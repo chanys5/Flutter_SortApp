@@ -5,12 +5,12 @@ import 'dart:math';
 import 'states_legend.dart';
 import 'size_config.dart';
 
-class SelectionSort extends StatefulWidget {
+class MergeSort extends StatefulWidget {
   @override
-  _SelectionSortState createState() => _SelectionSortState();
+  _MergeSortState createState() => _MergeSortState();
 }
 
-class _SelectionSortState extends State<SelectionSort> {
+class _MergeSortState extends State<MergeSort> {
   bool sorted = false;
   bool stopSort = false;
   List<SortObject> numbers = [];
@@ -21,6 +21,7 @@ class _SelectionSortState extends State<SelectionSort> {
     SortState.open,
     SortState.sorting,
     SortState.sorted,
+    SortState.range,
     SortState.swapping,
   ];
 
@@ -70,57 +71,93 @@ class _SelectionSortState extends State<SelectionSort> {
 
   Future sort() async {
     if (sorted) return;
-
     sorted = true;
 
-    int prevIndex0 = 0;
-
-    const Duration dur = Duration(milliseconds: 500);
-
-    int minIndex;
-
-    for (var i = 0; i < numbers.length; ++i) {
-      minIndex = i;
-      for (var j = i + 1; j < numbers.length; ++j) {
-        // Set states
-        numbers[prevIndex0].state = SortState.open;
-
-        prevIndex0 = j;
-
-        numbers[j].state = SortState.sorting;
-
-        if (numbers[j].value < numbers[minIndex].value) {
-          // Set min
-          minIndex = j;
-        }
-
-        stats.iterations++;
-        setState(() {});
-        await Future.delayed(dur);
-      }
-      numbers[numbers.length - 1].state = SortState.open;
-
-      // Swap with first index
-      var tmp = numbers[i];
-      numbers[i] = numbers[minIndex];
-      numbers[minIndex] = tmp;
-
-      numbers[i].state = SortState.swapping;
-      numbers[minIndex].state = SortState.swapping;
-
-      stats.swaps++;
-
-      setState(() {});
-      await Future.delayed(dur);
-
-      numbers[i].state = SortState.sorted;
-      numbers[minIndex].state = SortState.open;
-    }
+    await sortHelper(0, numbers.length - 1);
 
     for (var i = 0; i < numbers.length; ++i)
       numbers[i].state = SortState.sorted;
 
     setState(() {});
+  }
+
+  Future sortHelper(int start, int end) async {
+    Duration dur = Duration(milliseconds: 500 ~/ speedMultipler);
+
+    if (start < end) {
+      int mid = start + (end - start) ~/ 2;
+
+      await sortHelper(start, mid);
+      await sortHelper(mid + 1, end);
+
+      numbers[start].state = SortState.range;
+      numbers[mid].state = SortState.range;
+      numbers[end].state = SortState.range;
+      setState(() {});
+      await Future.delayed(dur);
+
+      await merge(start, mid, end, dur);
+
+      numbers[start].state = SortState.open;
+      numbers[mid].state = SortState.open;
+      numbers[end].state = SortState.open;
+      setState(() {});
+      await Future.delayed(dur);
+    }
+  }
+
+  Future merge(int start, int mid, int end, Duration dur) async {
+    int start2 = mid + 1;
+
+    setState(() {});
+    await Future.delayed(dur);
+    // Already sorted
+    if (numbers[mid].value <= numbers[start2].value) {
+      return;
+    }
+    int prevIndex = 0;
+    while (start <= mid && start2 <= end) {
+      numbers[prevIndex].state = SortState.open;
+      prevIndex = start2;
+      numbers[start2].state = SortState.sorting;
+
+      stats.iterations++;
+
+      setState(() {});
+      await Future.delayed(dur);
+
+      if (numbers[start].value <= numbers[start2].value) {
+        start++;
+      } else {
+        int index = start2;
+
+        while (index != start) {
+          // Swap
+          var tmp = numbers[index];
+          numbers[index] = numbers[index - 1];
+          numbers[index - 1] = tmp;
+
+          numbers[index].state = SortState.swapping;
+          numbers[index - 1].state = SortState.swapping;
+
+          setState(() {});
+          await Future.delayed(dur);
+
+          numbers[index].state = SortState.open;
+          numbers[index - 1].state = SortState.open;
+
+          index--;
+          stats.swaps++;
+          stats.iterations++;
+        }
+
+        start++;
+        mid++;
+        start2++;
+      }
+    }
+
+    numbers[prevIndex].state = SortState.open;
   }
 
   @override
@@ -134,7 +171,7 @@ class _SelectionSortState extends State<SelectionSort> {
         : containerHeight * 1.25;
 
     return Scaffold(
-      appBar: AppBar(title: Text("Selection Sort"), centerTitle: true),
+      appBar: AppBar(title: Text("Merge Sort"), centerTitle: true),
       body: Column(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: [

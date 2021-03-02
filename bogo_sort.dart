@@ -5,12 +5,12 @@ import 'dart:math';
 import 'states_legend.dart';
 import 'size_config.dart';
 
-class SelectionSort extends StatefulWidget {
+class BogoSort extends StatefulWidget {
   @override
-  _SelectionSortState createState() => _SelectionSortState();
+  _BogoSortState createState() => _BogoSortState();
 }
 
-class _SelectionSortState extends State<SelectionSort> {
+class _BogoSortState extends State<BogoSort> {
   bool sorted = false;
   bool stopSort = false;
   List<SortObject> numbers = [];
@@ -22,9 +22,10 @@ class _SelectionSortState extends State<SelectionSort> {
     SortState.sorting,
     SortState.sorted,
     SortState.swapping,
+    SortState.checking,
   ];
 
-  Duration genDuration = Duration(milliseconds: 2);
+  Duration genDuration = Duration(milliseconds: 3);
   @override
   void initState() {
     super.initState();
@@ -70,57 +71,58 @@ class _SelectionSortState extends State<SelectionSort> {
 
   Future sort() async {
     if (sorted) return;
-
     sorted = true;
 
-    int prevIndex0 = 0;
+    Duration dur = Duration(milliseconds: 500 ~/ speedMultipler);
 
-    const Duration dur = Duration(milliseconds: 500);
-
-    int minIndex;
-
-    for (var i = 0; i < numbers.length; ++i) {
-      minIndex = i;
-      for (var j = i + 1; j < numbers.length; ++j) {
-        // Set states
-        numbers[prevIndex0].state = SortState.open;
-
-        prevIndex0 = j;
-
-        numbers[j].state = SortState.sorting;
-
-        if (numbers[j].value < numbers[minIndex].value) {
-          // Set min
-          minIndex = j;
-        }
-
-        stats.iterations++;
-        setState(() {});
-        await Future.delayed(dur);
+    while (!isSorted()) {
+      for (int i = 0; i < numbers.length; ++i) {
+        numbers[i].state = SortState.checking;
       }
-      numbers[numbers.length - 1].state = SortState.open;
-
-      // Swap with first index
-      var tmp = numbers[i];
-      numbers[i] = numbers[minIndex];
-      numbers[minIndex] = tmp;
-
-      numbers[i].state = SortState.swapping;
-      numbers[minIndex].state = SortState.swapping;
-
-      stats.swaps++;
-
       setState(() {});
       await Future.delayed(dur);
 
-      numbers[i].state = SortState.sorted;
-      numbers[minIndex].state = SortState.open;
+      for (int i = 0; i < numbers.length; ++i) {
+        numbers[i].state = SortState.open;
+      }
+
+      for (int i = 0; i < numbers.length; ++i) {
+        int randIndex = Random().nextInt(numbers.length);
+
+        // Swap
+        var tmp = numbers[i];
+        numbers[i] = numbers[randIndex];
+        numbers[randIndex] = tmp;
+
+        numbers[i].state = SortState.swapping;
+        numbers[randIndex].state = SortState.swapping;
+
+        stats.swaps++;
+
+        setState(() {});
+        await Future.delayed(dur);
+
+        numbers[i].state = SortState.open;
+        numbers[randIndex].state = SortState.open;
+
+        stats.iterations++;
+      }
     }
 
     for (var i = 0; i < numbers.length; ++i)
       numbers[i].state = SortState.sorted;
 
     setState(() {});
+  }
+
+  bool isSorted() {
+    for (int i = 0; i < numbers.length - 1; ++i) {
+      stats.iterations++;
+      if (numbers[i].value > numbers[i + 1].value) {
+        return false;
+      }
+    }
+    return true;
   }
 
   @override
@@ -134,7 +136,7 @@ class _SelectionSortState extends State<SelectionSort> {
         : containerHeight * 1.25;
 
     return Scaffold(
-      appBar: AppBar(title: Text("Selection Sort"), centerTitle: true),
+      appBar: AppBar(title: Text("Bogo Sort"), centerTitle: true),
       body: Column(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: [
@@ -175,7 +177,7 @@ class _SelectionSortState extends State<SelectionSort> {
                     });
                   }),
             ],
-          )
+          ),
         ],
       ),
     );
